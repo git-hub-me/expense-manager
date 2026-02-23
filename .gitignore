@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+dist/
+.DS_Store
+*.log
+
+# Backend data file — contains personal expense records
+backend/expenses.json

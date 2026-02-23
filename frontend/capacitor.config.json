@@ -1,0 +1,9 @@
+{
+  "appId": "com.bhushankamble.expensemanager",
+  "appName": "ExpenseManager",
+  "webDir": "dist",
+  "ios": {
+    "backgroundColor": "#F5F5F0",
+    "contentInset": "automatic"
+  }
+}
