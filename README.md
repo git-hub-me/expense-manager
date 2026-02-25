@@ -6,6 +6,21 @@ A personal iOS expense tracking app with AI-powered entry, built with React + Ca
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/dashboard-summary.png" width="200" alt="Dashboard summary" />
+  <img src="screenshots/dashboard-chart.png" width="200" alt="Category pie chart" />
+  <img src="screenshots/dashboard-daily.png" width="200" alt="Daily spending chart" />
+</p>
+<p align="center">
+  <img src="screenshots/history.png" width="200" alt="Expense history" />
+  <img src="screenshots/data.png" width="200" alt="CSV export and import" />
+  <img src="screenshots/settings.png" width="200" alt="Settings" />
+</p>
+
+---
+
 ## Features
 
 - **AI Entry** — describe an expense in plain text; Gemini extracts amount, category, date and details
