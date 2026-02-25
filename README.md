@@ -18,6 +18,10 @@ A personal iOS expense tracking app with AI-powered entry, built with React + Ca
   <img src="screenshots/data.png" width="200" alt="CSV export and import" />
   <img src="screenshots/settings.png" width="200" alt="Settings" />
 </p>
+<p align="center">
+  <img src="screenshots/ai-entry1.png" width="200" alt="AI expense entry" />
+  <img src="screenshots/ai-entry2.png" width="200" alt="AI entry result" />
+</p>
 
 ---
 
