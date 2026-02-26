@@ -8,10 +8,12 @@ A personal iOS expense tracking app with AI-powered entry, built with React + Ca
 
 ## Features
 
-- **AI Entry** — describe an expense in plain text; Gemini extracts amount, category, date and details
-- **Dashboard** — monthly spend summary, category pie chart, 30-day daily bar chart (tap a bar to drill into that day)
-- **History** — searchable and sortable list, inline edit, single and bulk delete
-- **CSV Import / Export** — drag-and-drop import with column auto-mapping; one-tap CSV download
+- **AI Entry** — describe an expense in plain text; Gemini extracts amount, category, date and details; original prompt is stored immutably alongside the record
+- **Subcategory support** — pick a subcategory chip at entry time, or let AI reclassification fill them in automatically
+- **Reclassify with AI** — batch-process any date range of expenses through Gemini to fix categories and add subcategories; review proposed changes before applying; 30-second undo window
+- **Dashboard** — 4 KPI cards (this month, vs last month, top category, this week vs last week till date), subcategory spend tiles, category pie chart, 30-day daily bar chart (tap a bar to drill into that day)
+- **History** — searchable and sortable list, inline edit, single and bulk delete; subcategory shown per row
+- **CSV Import / Export** — drag-and-drop import with column auto-mapping; export now includes Subcategory and Original Prompt columns
 - **Persistent storage** — data lives in native iOS `UserDefaults` via `@capacitor/preferences` (survives app updates, never auto-evicted)
 - **Settings** — switch between Gemini 2.5 Flash Lite and Flash, test connectivity, clear all data
 
@@ -136,20 +138,23 @@ expense-manager/
 ├── frontend/                  # React + Capacitor app
 │   ├── src/
 │   │   ├── components/        # UI components
-│   │   │   ├── AIEntry.jsx        # Natural language expense entry
-│   │   │   ├── Dashboard.jsx      # Charts + stats overview
-│   │   │   ├── History.jsx        # Expense list + edit/delete
-│   │   │   ├── CSVImport.jsx      # Import & export
-│   │   │   ├── PendingExpense.jsx # AI result review modal
-│   │   │   ├── Settings.jsx       # Model config + data clear
-│   │   │   ├── Navigation.jsx     # Tab bar + header
-│   │   │   ├── StatsGrid.jsx      # Monthly KPI cards
+│   │   │   ├── AIEntry.jsx           # Natural language expense entry
+│   │   │   ├── Dashboard.jsx         # Charts + stats overview
+│   │   │   ├── History.jsx           # Expense list + edit/delete
+│   │   │   ├── CSVImport.jsx         # Import & export
+│   │   │   ├── PendingExpense.jsx    # AI result review modal (+ subcategory picker)
+│   │   │   ├── ReclassifyConfig.jsx  # Reclassify scope/mode config modal
+│   │   │   ├── ReclassifyReview.jsx  # Diff-table review before applying changes
+│   │   │   ├── Settings.jsx          # Model config + data clear
+│   │   │   ├── Navigation.jsx        # Tab bar + header
+│   │   │   ├── StatsGrid.jsx         # KPI cards (monthly, MoM, top category, WTD)
 │   │   │   └── charts/
 │   │   │       ├── CategoryPie.jsx
 │   │   │       └── DailyBar.jsx
 │   │   ├── lib/
-│   │   │   ├── storage.js         # Capacitor Preferences CRUD
-│   │   │   └── constants.js       # Categories, formatters
+│   │   │   ├── storage.js         # Capacitor Preferences CRUD + reclassify apply/undo
+│   │   │   ├── reclassify.js      # Gemini batched reclassification engine
+│   │   │   └── constants.js       # Categories, subcategories, formatters
 │   │   ├── App.jsx                # Root component + state
 │   │   └── index.css
 │   ├── ios/                   # Native iOS project (Xcode)
@@ -182,7 +187,10 @@ The importer is flexible — column names are case-insensitive and several alias
 | `Expense` | `Description`, `details`, `Note` | Free text |
 | `Total cost` | `Amount`, `Cost`, `Total` | Numeric |
 | `Category` | `category` | Food, Transport, Utilities, Entertainment, Shopping, Health, Other |
+| `Subcategory` | `subcategory` | Optional; e.g. Groceries, Fuel, Streaming |
 | `PaidBy` | `Paid By`, `paid_by` | Defaults to "Me" |
+
+CSV **export** includes two additional columns: `Subcategory` and `Original Prompt` (the raw text used to create AI-entered expenses; empty for manual entries).
 
 ---
 

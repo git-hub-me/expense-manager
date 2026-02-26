@@ -1,7 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Pencil, Trash2, Check, X, ChevronDown, ChevronUp, AlertTriangle, FilterX, Calendar } from 'lucide-react';
+import { Pencil, Trash2, Check, X, ChevronDown, ChevronUp, AlertTriangle, FilterX, Calendar, Wand2, Loader2 } from 'lucide-react';
 import { CATEGORIES, CATEGORY_COLORS, CATEGORY_BG, CATEGORY_ICONS, formatCurrency, formatDate } from '../lib/constants';
+import { getSettings } from '../lib/storage';
+import { runReclassification, getScopedExpenses } from '../lib/reclassify';
+import ReclassifyConfig from './ReclassifyConfig';
+import ReclassifyReview from './ReclassifyReview';
 
 const INPUT_CLS =
   'w-full border border-[#1A1A1A]/10 rounded-xl px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-[#5A5A40]/20 focus:border-[#5A5A40]/30 transition-all';
@@ -97,6 +101,8 @@ export default function History({
   showToast,
   filterDateProp = '',
   onClearDateFilter,
+  onReclassify,
+  onUndoReclassify,
 }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [editingId, setEditingId] = useState(null);
@@ -110,6 +116,13 @@ export default function History({
   const [deleting, setDeleting] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [showReclassifyConfig, setShowReclassifyConfig] = useState(false);
+  const [reclassifyProposals, setReclassifyProposals] = useState(null);
+  const [reclassifyLoading, setReclassifyLoading] = useState(false);
+  const [reclassifyProgress, setReclassifyProgress] = useState({ current: 0, total: 0, retrying: false });
+  const [undoSnapshot, setUndoSnapshot] = useState(null);
+  const [reclassifyMeta, setReclassifyMeta] = useState({ mode: 'conservative', scope: '30d' });
+  const undoTimeoutRef = useRef(null);
 
   // Sync date filter when parent navigates here with a specific date
   useEffect(() => {
@@ -221,6 +234,64 @@ export default function History({
     }
   };
 
+  // ── Reclassify ───────────────────────────────────────────────────────────
+
+  const handleReclassifyStart = async ({ mode, scope }) => {
+    setShowReclassifyConfig(false);
+    setReclassifyMeta({ mode, scope });
+    setReclassifyProgress({ current: 0, total: 0, retrying: false });
+    setReclassifyLoading(true);
+    try {
+      const { model } = getSettings();
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const scoped = getScopedExpenses(expenses, scope);
+      if (scoped.length === 0) {
+        showToast('No expenses in the selected scope.', 'error');
+        return;
+      }
+      const { changes } = await runReclassification({
+        expenses: scoped,
+        mode,
+        model,
+        apiKey,
+        onProgress: (p) => setReclassifyProgress(p),
+      });
+      if (changes.length === 0) {
+        showToast('No changes suggested — your categories look good!');
+        return;
+      }
+      setReclassifyProposals(changes);
+    } catch (e) {
+      showToast(e.message || 'AI analysis failed.', 'error');
+    } finally {
+      setReclassifyLoading(false);
+    }
+  };
+
+  const handleApplyReclassification = async (approvedChanges) => {
+    setReclassifyProposals(null);
+    try {
+      const snapshot = await onReclassify(approvedChanges, {
+        mode: reclassifyMeta.mode,
+        scope: reclassifyMeta.scope,
+      });
+      setUndoSnapshot(snapshot);
+      showToast(`${approvedChanges.length} expense${approvedChanges.length !== 1 ? 's' : ''} updated.`);
+      // Auto-clear undo after 30s
+      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = setTimeout(() => setUndoSnapshot(null), 30000);
+    } catch {
+      showToast('Failed to apply changes.', 'error');
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undoSnapshot) return;
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    setUndoSnapshot(null);
+    await onUndoReclassify(undoSnapshot);
+  };
+
   // ── Sort icon ────────────────────────────────────────────────────────────
 
   const SortIcon = ({ col }) => sortKey !== col
@@ -256,6 +327,90 @@ export default function History({
             onCancel={() => setConfirmBulkDelete(false)}
           />
         )}
+        {showReclassifyConfig && (
+          <ReclassifyConfig
+            expenseCount={expenses.length}
+            onConfirm={handleReclassifyStart}
+            onClose={() => setShowReclassifyConfig(false)}
+          />
+        )}
+        {reclassifyProposals && (
+          <ReclassifyReview
+            proposals={reclassifyProposals}
+            expenseMap={new Map(expenses.map((e) => [e.id, e]))}
+            onApply={handleApplyReclassification}
+            onClose={() => setReclassifyProposals(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Reclassify loading overlay */}
+      <AnimatePresence>
+        {reclassifyLoading && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-[#1A1A1A]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="fixed inset-0 flex items-center justify-center z-50 px-4"
+            >
+              <div className="bg-white rounded-4xl border border-[#1A1A1A]/5 shadow-2xl px-10 py-8 flex flex-col items-center gap-4 w-72">
+                <div className="w-12 h-12 rounded-2xl bg-[#5A5A40]/10 flex items-center justify-center">
+                  <Loader2 size={22} className="text-[#5A5A40] animate-spin" />
+                </div>
+                <div className="text-center w-full">
+                  <p className="font-serif text-xl font-semibold text-[#1A1A1A]">Analyzing expenses…</p>
+                  {reclassifyProgress.total > 1 ? (
+                    <>
+                      <p className="text-xs text-[#8A8A70] mt-1">
+                        {reclassifyProgress.retrying
+                          ? `Retrying batch ${reclassifyProgress.current}…`
+                          : `Batch ${reclassifyProgress.current} of ${reclassifyProgress.total}`}
+                      </p>
+                      <div className="mt-3 w-full h-1.5 bg-[#F0F0E8] rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-[#5A5A40] rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(reclassifyProgress.current / reclassifyProgress.total) * 100}%` }}
+                          transition={{ ease: 'easeOut', duration: 0.4 }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-[#8A8A70] mt-1">AI is reviewing your categories</p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Undo reclassification banner */}
+      <AnimatePresence>
+        {undoSnapshot && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed left-1/2 -translate-x-1/2 z-40 bottom-safe-toast flex items-center gap-3 px-5 py-3 bg-[#1A1A1A] text-white rounded-2xl shadow-xl text-sm"
+          >
+            <span>Reclassification applied.</span>
+            <button
+              onClick={handleUndo}
+              className="font-medium underline underline-offset-2 hover:opacity-80 transition-opacity"
+            >
+              Undo
+            </button>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Header */}
@@ -264,20 +419,30 @@ export default function History({
           <h2 className="font-serif text-4xl font-semibold text-[#1A1A1A]">Expense History</h2>
           <p className="text-sm text-[#8A8A70] mt-0.5">{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</p>
         </div>
-        <AnimatePresence>
-          {selectedIds.size > 0 && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              onClick={() => setConfirmBulkDelete(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-full text-sm font-medium hover:bg-red-100 transition-colors"
-            >
-              <Trash2 size={14} />
-              Delete {selectedIds.size} selected
-            </motion.button>
-          )}
-        </AnimatePresence>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowReclassifyConfig(true)}
+            disabled={expenses.length === 0}
+            className="flex items-center gap-1.5 px-4 py-2.5 border border-[#1A1A1A]/10 rounded-full text-sm font-medium text-[#6B6B50] hover:bg-[#F5F5F0] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Wand2 size={14} />
+            Reclassify with AI
+          </button>
+          <AnimatePresence>
+            {selectedIds.size > 0 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={() => setConfirmBulkDelete(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-full text-sm font-medium hover:bg-red-100 transition-colors"
+              >
+                <Trash2 size={14} />
+                Delete {selectedIds.size} selected
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Filters */}
@@ -406,7 +571,10 @@ export default function History({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[#1A1A1A] truncate">{expense.details || '—'}</p>
-                        <p className="text-xs text-[#8A8A70] mt-0.5 truncate">{formatDate(expense.date)} · {expense.paidBy || 'Me'}</p>
+                        <p className="text-xs text-[#8A8A70] mt-0.5 truncate">
+                          {formatDate(expense.date)} · {expense.paidBy || 'Me'}
+                          {expense.subcategory && <span className="text-[#5A5A40]/70"> · {expense.subcategory}</span>}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-sm font-semibold text-[#1A1A1A] tabular-nums">{formatCurrency(expense.amount)}</span>
@@ -459,7 +627,17 @@ export default function History({
                         <td className="px-4 py-3"><input type="checkbox" checked={isSelected} onChange={() => toggleOne(expense.id)} className="w-4 h-4 rounded accent-[#5A5A40] cursor-pointer" /></td>
                         <td className="px-4 py-3">{isEditing ? <input type="date" value={editData.date || ''} onChange={(e) => handleEditChange('date', e.target.value)} className={INPUT_CLS} /> : <span className="text-sm text-[#1A1A1A]">{formatDate(expense.date)}</span>}</td>
                         <td className="px-4 py-3 max-w-[200px]">{isEditing ? <input type="text" value={editData.details || ''} onChange={(e) => handleEditChange('details', e.target.value)} className={INPUT_CLS} placeholder="Description" /> : <span className="text-sm text-[#1A1A1A] block truncate">{expense.details || '—'}</span>}</td>
-                        <td className="px-4 py-3">{isEditing ? <CategorySelect value={editData.category || 'Other'} onChange={(v) => handleEditChange('category', v)} cls={INPUT_CLS} /> : <CategoryBadge category={expense.category} />}</td>
+                        <td className="px-4 py-3">
+                          {isEditing
+                            ? <CategorySelect value={editData.category || 'Other'} onChange={(v) => handleEditChange('category', v)} cls={INPUT_CLS} />
+                            : <div>
+                                <CategoryBadge category={expense.category} />
+                                {expense.subcategory && (
+                                  <p className="text-[10px] text-[#8A8A70] mt-1 pl-1">{expense.subcategory}</p>
+                                )}
+                              </div>
+                          }
+                        </td>
                         <td className="px-4 py-3 text-right">{isEditing ? <input type="number" min="0" step="0.01" value={editData.amount ?? ''} onChange={(e) => handleEditChange('amount', parseFloat(e.target.value) || 0)} className={INPUT_CLS + ' text-right'} /> : <span className="text-sm font-semibold text-[#1A1A1A] tabular-nums">{formatCurrency(expense.amount)}</span>}</td>
                         <td className="px-4 py-3">{isEditing ? <input type="text" value={editData.paidBy || ''} onChange={(e) => handleEditChange('paidBy', e.target.value)} className={INPUT_CLS} placeholder="Me" /> : <span className="text-sm text-[#6B6B50]">{expense.paidBy || 'Me'}</span>}</td>
                         <td className="px-4 py-3">

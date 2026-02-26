@@ -90,7 +90,7 @@ export default function AIEntry({ onExtract, onClose }) {
     setError('');
     try {
       const data = await extractExpense(trimmed);
-      onExtract(data);
+      onExtract(data, trimmed);
     } catch (e) {
       setError(e.message || 'Could not parse the expense. Please try again.');
     } finally {

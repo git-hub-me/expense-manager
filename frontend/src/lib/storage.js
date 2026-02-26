@@ -5,6 +5,8 @@ import { Preferences } from '@capacitor/preferences';
 
 const KEY = 'expense_tracker_v1';
 const SETTINGS_KEY = 'expense_tracker_settings_v1';
+const SUBCATEGORIES_KEY = 'expense_tracker_subcategories_v1';
+const AUDIT_KEY = 'expense_tracker_audit_v1';
 
 async function load() {
   try {
@@ -42,7 +44,9 @@ export async function updateExpense(id, updates) {
   const expenses = await load();
   const idx = expenses.findIndex((e) => e.id === id);
   if (idx === -1) throw new Error('Expense not found');
-  expenses[idx] = { ...expenses[idx], ...updates, id };
+  // original_prompt is immutable — strip it from any update payload
+  const { original_prompt: _immutable, ...safeUpdates } = updates;
+  expenses[idx] = { ...expenses[idx], ...safeUpdates, id };
   await persist(expenses);
   return expenses[idx];
 }
@@ -66,6 +70,115 @@ export async function clearAllExpenses() {
   await persist([]);
 }
 
+// ── Subcategory storage ───────────────────────────────────────────────────────
+
+async function loadSubcategories() {
+  try {
+    const { value } = await Preferences.get({ key: SUBCATEGORIES_KEY });
+    return JSON.parse(value ?? 'null') ?? {};
+  } catch {
+    return {};
+  }
+}
+
+async function persistSubcategories(map) {
+  await Preferences.set({ key: SUBCATEGORIES_KEY, value: JSON.stringify(map) });
+}
+
+export async function getSubcategories() {
+  return loadSubcategories();
+}
+
+export async function saveSubcategories(map) {
+  await persistSubcategories(map);
+}
+
+export async function addApprovedSubcategory(parentCategory, name) {
+  const map = await loadSubcategories();
+  const existing = map[parentCategory] ?? [];
+  if (!existing.includes(name)) {
+    map[parentCategory] = [...existing, name].slice(0, 8); // hard cap: 8 per parent
+  }
+  await persistSubcategories(map);
+  return map;
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+
+async function loadAuditLog() {
+  try {
+    const { value } = await Preferences.get({ key: AUDIT_KEY });
+    return JSON.parse(value ?? '[]');
+  } catch {
+    return [];
+  }
+}
+
+async function persistAuditLog(log) {
+  await Preferences.set({ key: AUDIT_KEY, value: JSON.stringify(log) });
+}
+
+export async function addAuditEvent(event) {
+  const log = await loadAuditLog();
+  log.unshift({ ...event, timestamp: new Date().toISOString() });
+  // Keep last 100 entries
+  await persistAuditLog(log.slice(0, 100));
+}
+
+export async function getAuditLog() {
+  return loadAuditLog();
+}
+
+// ── Reclassification (apply + undo) ──────────────────────────────────────────
+
+export async function applyReclassification(approvedChanges, metadata) {
+  const expenses = await load();
+
+  // Build a snapshot of the affected expenses (for undo)
+  const affectedIds = new Set(approvedChanges.map((c) => c.transaction_id));
+  const snapshot = expenses
+    .filter((e) => affectedIds.has(e.id))
+    .map((e) => ({ ...e })); // shallow clone each
+
+  // Apply changes
+  const changeMap = new Map(approvedChanges.map((c) => [c.transaction_id, c]));
+  const updated = expenses.map((e) => {
+    const change = changeMap.get(e.id);
+    if (!change) return e;
+    return {
+      ...e,
+      category: change.new_category ?? e.category,
+      subcategory: change.new_subcategory ?? e.subcategory ?? null,
+      details: change.new_description ?? e.details,
+      normalized_merchant: change.normalized_merchant ?? e.normalized_merchant ?? null,
+    };
+  });
+
+  await persist(updated);
+
+  await addAuditEvent({
+    type: 'AI_RECLASSIFICATION',
+    mode: metadata?.mode ?? 'conservative',
+    scope: metadata?.scope ?? 'unknown',
+    changedCount: approvedChanges.length,
+    subcategoriesCreated: metadata?.subcategoriesCreated ?? 0,
+  });
+
+  return { snapshot, updatedCount: approvedChanges.length };
+}
+
+export async function undoReclassification(snapshot) {
+  const expenses = await load();
+  const snapshotMap = new Map(snapshot.map((e) => [e.id, e]));
+  const restored = expenses.map((e) => snapshotMap.get(e.id) ?? e);
+  await persist(restored);
+
+  await addAuditEvent({
+    type: 'AI_RECLASSIFICATION_UNDO',
+    restoredCount: snapshot.length,
+  });
+}
+
 // ── Settings (localStorage — tiny preference, fine to lose on eviction) ──────
 
 export function getSettings() {
@@ -85,12 +198,14 @@ export function saveSettings(settings) {
 // ── CSV Export ────────────────────────────────────────────────────────────────
 
 export function exportToCSV(expenses) {
-  const headers = ['Date', 'Amount', 'Category', 'Details', 'PaidBy'];
+  const headers = ['Date', 'Amount', 'Category', 'Subcategory', 'Details', 'Original Prompt', 'PaidBy'];
   const rows = expenses.map((e) => [
     e.date ?? '',
     e.amount ?? 0,
     e.category ?? '',
+    e.subcategory ?? '',
     (e.details ?? '').replace(/"/g, '""'),
+    (e.original_prompt ?? '').replace(/"/g, '""'),
     e.paidBy ?? 'Me',
   ]);
   const csv = [headers, ...rows]
