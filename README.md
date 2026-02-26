@@ -224,3 +224,7 @@ CSV **export** includes two additional columns: `Subcategory` and `Original Prom
   <img src="screenshots/ai-entry1.png" width="200" alt="AI expense entry" />
   <img src="screenshots/ai-entry2.png" width="200" alt="AI entry result" />
 </p>
+<p align="center">
+  <img src="screenshots/ai-reclassify1.png" width="200" alt="Reclassify with AI — config" />
+  <img src="screenshots/ai-reclassify2.png" width="200" alt="Reclassify with AI — review" />
+</p>
