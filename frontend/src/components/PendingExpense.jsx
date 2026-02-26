@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Check, X } from 'lucide-react';
-import { CATEGORIES, CATEGORY_COLORS, CATEGORY_BG, CATEGORY_ICONS, formatCurrency, today } from '../lib/constants';
+import { CATEGORIES, CATEGORY_COLORS, CATEGORY_BG, CATEGORY_ICONS, DEFAULT_SUBCATEGORIES, formatCurrency, today } from '../lib/constants';
 
 const FIELD_CLS =
   'w-full h-11 border border-[#1A1A1A]/10 rounded-xl px-3 text-sm bg-[#FAFAF7] focus:ring-2 focus:ring-[#5A5A40]/20 focus:border-[#5A5A40]/30 transition-all';
@@ -18,6 +18,7 @@ export default function PendingExpense({ expense, onSave, onCancel }) {
     paidBy: expense?.paidBy || 'Me',
   });
   const [customCategory, setCustomCategory] = useState(isInitialCustom ? initialCategory : '');
+  const [subcategory, setSubcategory] = useState(expense?.subcategory ?? '');
   const [saving, setSaving] = useState(false);
 
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -29,7 +30,13 @@ export default function PendingExpense({ expense, onSave, onCancel }) {
         ? customCategory.trim()
         : form.category;
     try {
-      await onSave({ ...form, amount: parseFloat(form.amount) || 0, category: resolvedCategory });
+      await onSave({
+        ...form,
+        amount: parseFloat(form.amount) || 0,
+        category: resolvedCategory,
+        subcategory: subcategory || null,
+        _originalPrompt: expense?._originalPrompt ?? null,
+      });
     } finally {
       setSaving(false);
     }
@@ -116,7 +123,7 @@ export default function PendingExpense({ expense, onSave, onCancel }) {
                 </label>
                 <select
                   value={form.category}
-                  onChange={(e) => { set('category', e.target.value); setCustomCategory(''); }}
+                  onChange={(e) => { set('category', e.target.value); setCustomCategory(''); setSubcategory(''); }}
                   className={FIELD_CLS}
                 >
                   {CATEGORIES.map((c) => (
@@ -134,6 +141,31 @@ export default function PendingExpense({ expense, onSave, onCancel }) {
                 placeholder="e.g. Rent, Insurance…"
                 className={FIELD_CLS}
               />
+            )}
+
+            {/* Subcategory chips */}
+            {(DEFAULT_SUBCATEGORIES[form.category]?.length > 0) && (
+              <div>
+                <label className="block text-xs text-[#8A8A70] uppercase tracking-wider mb-1.5 font-medium">
+                  Subcategory <span className="normal-case font-normal">(optional)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DEFAULT_SUBCATEGORIES[form.category].map((sub) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => setSubcategory(subcategory === sub ? '' : sub)}
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                        subcategory === sub
+                          ? 'border-[#5A5A40]/50 bg-[#5A5A40]/10 text-[#5A5A40] font-medium'
+                          : 'border-[#1A1A1A]/8 text-[#6B6B50] hover:border-[#5A5A40]/30 hover:text-[#5A5A40]'
+                      }`}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Details */}

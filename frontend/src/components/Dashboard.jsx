@@ -4,7 +4,7 @@ import { ArrowRight, X } from 'lucide-react';
 import StatsGrid from './StatsGrid';
 import CategoryPie from './charts/CategoryPie';
 import DailyBar from './charts/DailyBar';
-import { formatCurrency, formatDate } from '../lib/constants';
+import { formatCurrency, formatDate, CATEGORY_COLORS, CATEGORY_BG, CATEGORY_ICONS } from '../lib/constants';
 
 function SkeletonCard({ className = '' }) {
   return (
@@ -27,6 +27,20 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
     });
   }, [expenses]);
 
+  // Subcategory breakdown for current month
+  const subcategoryData = useMemo(() => {
+    const subTotals = {};
+    const subParent = {};
+    currentMonthExpenses.forEach((e) => {
+      if (!e.subcategory) return;
+      subTotals[e.subcategory] = (subTotals[e.subcategory] || 0) + (e.amount ?? 0);
+      subParent[e.subcategory] = e.category;
+    });
+    return Object.entries(subTotals)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, total]) => ({ name, total, category: subParent[name] }));
+  }, [currentMonthExpenses]);
+
   const handleBarClick = (entry) => {
     setDayPopup(entry); // entry = { full: 'YYYY-MM-DD', date: 'D/M', total }
   };
@@ -39,7 +53,8 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
@@ -111,6 +126,43 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
 
       {/* Stats */}
       <StatsGrid expenses={expenses} />
+
+      {/* Subcategory tiles */}
+      {subcategoryData.length > 0 && (
+        <div>
+          <div className="mb-3">
+            <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">By Subcategory</h3>
+            <p className="text-xs text-[#8A8A70]">This month</p>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+            {subcategoryData.map(({ name, total, category }) => {
+              const color = CATEGORY_COLORS[category] || '#8A8A70';
+              const bg = CATEGORY_BG[category] || '#F2F2EE';
+              const Icon = CATEGORY_ICONS[category] || CATEGORY_ICONS.Other;
+              return (
+                <div
+                  key={name}
+                  className="shrink-0 bg-white rounded-2xl border border-[#1A1A1A]/5 px-4 py-3.5 flex flex-col gap-2 min-w-[120px]"
+                >
+                  <div
+                    className="w-7 h-7 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: bg }}
+                  >
+                    <Icon size={13} strokeWidth={2} style={{ color }} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#1A1A1A] leading-tight">{name}</p>
+                    <p className="text-xs text-[#8A8A70] mt-0.5">{category}</p>
+                  </div>
+                  <p className="font-serif text-lg font-semibold text-[#1A1A1A] tabular-nums leading-none">
+                    {formatCurrency(total)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

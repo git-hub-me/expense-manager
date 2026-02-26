@@ -15,6 +15,8 @@ import {
   deleteExpense,
   bulkDeleteExpenses,
   seedSampleData,
+  applyReclassification,
+  undoReclassification,
 } from './lib/storage';
 
 export default function App() {
@@ -77,18 +79,37 @@ export default function App() {
 
   // ── AI flow ───────────────────────────────────────────────────────────────
 
-  const handleAIExtract = (extracted) => {
-    setPendingExpense(extracted);
+  const handleAIExtract = (extracted, originalPrompt) => {
+    setPendingExpense({ ...extracted, _originalPrompt: originalPrompt ?? null });
     setShowAIEntry(false);
   };
 
   const handleConfirm = async (expenseData) => {
     try {
-      await handleAdd(expenseData);
+      const { _originalPrompt, ...rest } = expenseData;
+      await handleAdd({ ...rest, original_prompt: _originalPrompt ?? null });
       setPendingExpense(null);
       showToast('Expense saved!');
     } catch {
       showToast('Failed to save expense.', 'error');
+    }
+  };
+
+  // ── Reclassification ─────────────────────────────────────────────────────
+
+  const handleReclassify = async (approvedChanges, metadata) => {
+    const result = await applyReclassification(approvedChanges, metadata);
+    await loadExpenses();
+    return result.snapshot;
+  };
+
+  const handleUndoReclassification = async (snapshot) => {
+    try {
+      await undoReclassification(snapshot);
+      await loadExpenses();
+      showToast('Reclassification undone.');
+    } catch {
+      showToast('Failed to undo.', 'error');
     }
   };
 
@@ -144,6 +165,8 @@ export default function App() {
                 showToast={showToast}
                 filterDateProp={historyDateFilter}
                 onClearDateFilter={() => setHistoryDateFilter('')}
+                onReclassify={handleReclassify}
+                onUndoReclassify={handleUndoReclassification}
               />
             </motion.div>
           )}

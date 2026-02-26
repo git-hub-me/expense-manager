@@ -58,3 +58,13 @@ export const formatDate = (dateStr) => {
 };
 
 export const today = () => new Date().toISOString().split('T')[0];
+
+export const DEFAULT_SUBCATEGORIES = {
+  Food:          ['Groceries', 'Dining Out', 'Coffee & Snacks', 'Food Delivery'],
+  Transport:     ['Fuel', 'Ride Share', 'Public Transit', 'Parking'],
+  Utilities:     ['Electricity', 'Internet', 'Phone', 'Water'],
+  Entertainment: ['Streaming', 'Movies', 'Events', 'Games'],
+  Shopping:      ['Clothing', 'Electronics', 'Home Essentials', 'Personal Care'],
+  Health:        ['Doctor', 'Pharmacy', 'Gym', 'Insurance'],
+  Other:         [],
+};
