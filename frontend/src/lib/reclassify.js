@@ -253,7 +253,7 @@ export async function runReclassification({ expenses, mode, model, apiKey, onPro
         });
       } catch {
         // Both models failed for this batch — skip it rather than abort everything
-        console.warn(`Batch ${i + 1} failed on both models, skipping.`);
+        if (import.meta.env.DEV) console.warn(`Batch ${i + 1} failed on both models, skipping.`);
         continue;
       }
     }

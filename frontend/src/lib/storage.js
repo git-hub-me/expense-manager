@@ -7,6 +7,7 @@ const KEY = 'expense_tracker_v1';
 const SETTINGS_KEY = 'expense_tracker_settings_v1';
 const SUBCATEGORIES_KEY = 'expense_tracker_subcategories_v1';
 const AUDIT_KEY = 'expense_tracker_audit_v1';
+const AUTH_KEY = 'expense_tracker_auth_v1';
 
 async function load() {
   try {
@@ -177,6 +178,21 @@ export async function undoReclassification(snapshot) {
     type: 'AI_RECLASSIFICATION_UNDO',
     restoredCount: snapshot.length,
   });
+}
+
+// ── Auth state ────────────────────────────────────────────────────────────────
+
+export async function getAuthState() {
+  try {
+    const { value } = await Preferences.get({ key: AUTH_KEY });
+    return JSON.parse(value ?? 'null') ?? { loggedIn: false, onboarded: false };
+  } catch {
+    return { loggedIn: false, onboarded: false };
+  }
+}
+
+export async function saveAuthState(state) {
+  await Preferences.set({ key: AUTH_KEY, value: JSON.stringify(state) });
 }
 
 // ── Settings (localStorage — tiny preference, fine to lose on eviction) ──────

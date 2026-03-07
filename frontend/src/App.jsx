@@ -8,6 +8,8 @@ import CSVImport from './components/CSVImport';
 import AIEntry from './components/AIEntry';
 import PendingExpense from './components/PendingExpense';
 import Settings from './components/Settings';
+import Login from './components/Login';
+import Onboarding from './components/Onboarding';
 import {
   getExpenses,
   addExpense,
@@ -17,9 +19,12 @@ import {
   seedSampleData,
   applyReclassification,
   undoReclassification,
+  getAuthState,
+  saveAuthState,
 } from './lib/storage';
 
 export default function App() {
+  const [authState, setAuthState] = useState(null); // null = loading
   const [view, setView] = useState('dashboard');
   const [expenses, setExpenses] = useState([]);
   const [showAIEntry, setShowAIEntry] = useState(false);
@@ -32,6 +37,29 @@ export default function App() {
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  // ── Auth handlers ─────────────────────────────────────────────────────────
+
+  const handleLogin = async () => {
+    // If the device already has expense data this is a returning user — skip onboarding
+    const existing = await getExpenses();
+    const next = { loggedIn: true, onboarded: existing.length > 0 };
+    await saveAuthState(next);
+    setAuthState(next);
+  };
+
+  const handleOnboardingComplete = async () => {
+    await seedSampleData(); // seed only when a new user finishes onboarding
+    await loadExpenses();
+    const next = { loggedIn: true, onboarded: true };
+    await saveAuthState(next);
+    setAuthState(next);
+  };
+
+  const handleLogout = async () => {
+    await saveAuthState({ loggedIn: false, onboarded: false });
+    setAuthState({ loggedIn: false, onboarded: false });
   };
 
   // ── Load from native storage (seed sample data on first run) ────────────
@@ -48,7 +76,8 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      await seedSampleData();
+      const auth = await getAuthState();
+      setAuthState(auth);
       await loadExpenses();
     })();
   }, [loadExpenses]);
@@ -121,6 +150,17 @@ export default function App() {
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  // Still loading auth state from storage — render nothing to avoid flash
+  if (authState === null) return null;
+
+  if (!authState.loggedIn) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  if (!authState.onboarded) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
 
   return (
     <div className="fixed inset-0 overflow-y-auto bg-[#F5F5F0]">
@@ -230,6 +270,7 @@ export default function App() {
               loadExpenses();
               showToast('All data cleared.');
             }}
+            onLogout={handleLogout}
           />
         )}
       </AnimatePresence>

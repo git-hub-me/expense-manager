@@ -42,16 +42,28 @@ Rules:
 - details: clean, concise description
 - paidBy: "Me" unless explicitly stated`;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      }),
-    }
-  );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  let res;
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        }),
+        signal: controller.signal,
+      }
+    );
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Request timed out. Check your connection and try again.');
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const json = await res.json();
   if (!res.ok) throw new Error(json.error?.message ?? 'Gemini API error');
