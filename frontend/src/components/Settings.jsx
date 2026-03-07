@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Zap, Loader2, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { X, Zap, Loader2, CheckCircle, AlertCircle, Trash2, LogOut } from 'lucide-react';
 import { getSettings, saveSettings, clearAllExpenses } from '../lib/storage';
 
 const MODELS = [
@@ -17,8 +17,9 @@ const MODELS = [
 ];
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '1.0.0';
 
-export default function Settings({ onClose, onDataCleared }) {
+export default function Settings({ onClose, onDataCleared, onLogout }) {
   const [settings, setSettings] = useState(getSettings);
   const [testState, setTestState] = useState(null); // null | 'loading' | 'ok' | 'error'
   const [testMsg, setTestMsg] = useState('');
@@ -88,7 +89,7 @@ export default function Settings({ onClose, onDataCleared }) {
         className="fixed inset-0 flex items-center justify-center z-50 px-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-white rounded-4xl border border-[#1A1A1A]/5 shadow-2xl w-full max-w-md p-8 space-y-6">
+        <div className="bg-white rounded-4xl border border-[#1A1A1A]/5 shadow-2xl w-full max-w-md p-8 space-y-6 max-h-[88vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between">
             <h2 className="font-serif text-2xl font-semibold text-[#1A1A1A]">Settings</h2>
@@ -175,6 +176,21 @@ export default function Settings({ onClose, onDataCleared }) {
           {/* Divider */}
           <div className="border-t border-[#1A1A1A]/6" />
 
+          {/* Sign out */}
+          <div>
+            <p className="text-xs text-[#8A8A70] uppercase tracking-widest font-medium mb-3">Account</p>
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-4 py-2.5 border border-[#1A1A1A]/10 rounded-xl text-sm font-medium text-[#5A5A40] hover:bg-[#5A5A40]/5 transition-colors w-full"
+            >
+              <LogOut size={14} />
+              Sign out
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-[#1A1A1A]/6" />
+
           {/* Danger zone */}
           <div>
             <p className="text-xs text-[#8A8A70] uppercase tracking-widest font-medium mb-3">Danger Zone</p>
@@ -210,6 +226,11 @@ export default function Settings({ onClose, onDataCleared }) {
               </motion.div>
             )}
           </div>
+
+          {/* Version */}
+          <p className="text-center text-xs text-[#C5C5B0]" style={{ fontFamily: 'Inter, sans-serif' }}>
+            v{APP_VERSION}
+          </p>
         </div>
       </motion.div>
     </>
