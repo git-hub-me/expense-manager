@@ -5,6 +5,24 @@ import { getSettings, saveSettings, clearAllExpenses, getProfileName, saveProfil
 
 const CHANGELOG = [
   {
+    version: '1.3.0',
+    date: '2026-03-10',
+    entries: {
+      Added: [
+        '3 new categories: Travel, Investment, Rent — each with a unique icon and color',
+        'Yearly Trend chart on Dashboard — Jan–Dec totals for the current year',
+        'Pie chart month selector — toggle between This month, Last month, and Last week',
+        'Time-based greeting on Dashboard — Good morning / afternoon / evening / night',
+        'CSV import now maps 23 known category values directly to category + subcategory (no AI needed)',
+      ],
+      Changed: [
+        'Category Comparison now shows MTD vs same date range last month (e.g. Mar 1–10 vs Feb 1–10)',
+        'Category Comparison moved to the bottom of Dashboard',
+        'AI entry prompt and validation now include all 10 categories automatically',
+      ],
+    },
+  },
+  {
     version: '1.2.0',
     date: '2026-03-09',
     entries: {
