@@ -14,7 +14,7 @@ const EXAMPLES = [
 const VALID_CATEGORIES = ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Other'];
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-async function extractExpense(text) {
+async function extractExpense(text, signal) {
   if (!GEMINI_API_KEY) {
     throw new Error('VITE_GEMINI_API_KEY is not set in frontend/.env.local');
   }
@@ -44,6 +44,7 @@ Rules:
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
+  if (signal) signal.addEventListener('abort', () => controller.abort());
 
   let res;
   try {
@@ -59,7 +60,10 @@ Rules:
       }
     );
   } catch (e) {
-    if (e.name === 'AbortError') throw new Error('Request timed out. Check your connection and try again.');
+    if (e.name === 'AbortError') {
+      if (signal?.aborted) throw new DOMException('Cancelled.', 'AbortError');
+      throw new Error('Request timed out. Check your connection and try again.');
+    }
     throw e;
   } finally {
     clearTimeout(timeoutId);
@@ -94,17 +98,27 @@ export default function AIEntry({ onExtract, onClose }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const textareaRef = useRef(null);
+  const abortRef = useRef(null);
+
+  const handleClose = () => {
+    abortRef.current?.abort();
+    onClose();
+  };
 
   const handleExtract = async (input) => {
     const trimmed = (input || text).trim();
     if (!trimmed) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setIsProcessing(true);
     setError('');
     try {
-      const data = await extractExpense(trimmed);
+      const data = await extractExpense(trimmed, controller.signal);
       onExtract(data, trimmed);
     } catch (e) {
-      setError(e.message || 'Could not parse the expense. Please try again.');
+      if (e.name !== 'AbortError') {
+        setError(e.message || 'Could not parse the expense. Please try again.');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -121,7 +135,7 @@ export default function AIEntry({ onExtract, onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={handleClose}
         className="fixed inset-0 bg-[#1A1A1A]/40 backdrop-blur-sm z-40"
       />
 
@@ -147,7 +161,7 @@ export default function AIEntry({ onExtract, onClose }) {
               </div>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-8 h-8 rounded-xl border border-[#1A1A1A]/8 text-[#8A8A70] flex items-center justify-center hover:bg-[#F5F5F0] transition-colors"
             >
               <X size={15} />
@@ -201,7 +215,7 @@ export default function AIEntry({ onExtract, onClose }) {
           {/* Submit */}
           <div className="flex gap-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 py-3 border border-[#1A1A1A]/10 rounded-2xl text-sm font-medium text-[#6B6B50] hover:bg-[#F5F5F0] transition-colors"
             >
               Cancel

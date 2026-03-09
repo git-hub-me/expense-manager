@@ -123,6 +123,7 @@ export default function History({
   const [undoSnapshot, setUndoSnapshot] = useState(null);
   const [reclassifyMeta, setReclassifyMeta] = useState({ mode: 'conservative', scope: '30d' });
   const undoTimeoutRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   // Sync date filter when parent navigates here with a specific date
   useEffect(() => {
@@ -236,10 +237,18 @@ export default function History({
 
   // ── Reclassify ───────────────────────────────────────────────────────────
 
+  const handleStopReclassify = () => {
+    abortControllerRef.current?.abort();
+    setReclassifyLoading(false);
+    showToast('Analysis stopped');
+  };
+
   const handleReclassifyStart = async ({ mode, scope }) => {
     setShowReclassifyConfig(false);
     setReclassifyMeta({ mode, scope });
     setReclassifyProgress({ current: 0, total: 0, retrying: false });
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setReclassifyLoading(true);
     try {
       const { model } = getSettings();
@@ -255,6 +264,7 @@ export default function History({
         model,
         apiKey,
         onProgress: (p) => setReclassifyProgress(p),
+        signal: controller.signal,
       });
       if (changes.length === 0) {
         showToast('No changes suggested — your categories look good!');
@@ -262,7 +272,9 @@ export default function History({
       }
       setReclassifyProposals(changes);
     } catch (e) {
-      showToast(e.message || 'AI analysis failed.', 'error');
+      if (e.name !== 'AbortError') {
+        showToast(e.message || 'AI analysis failed.', 'error');
+      }
     } finally {
       setReclassifyLoading(false);
     }
@@ -387,6 +399,12 @@ export default function History({
                     <p className="text-xs text-[#8A8A70] mt-1">AI is reviewing your categories</p>
                   )}
                 </div>
+                <button
+                  onClick={handleStopReclassify}
+                  className="mt-1 text-xs text-[#8A8A70] hover:text-[#1A1A1A] border border-[#1A1A1A]/10 rounded-xl px-4 py-2 transition-colors hover:bg-[#F5F5F0]"
+                >
+                  Stop analysis
+                </button>
               </div>
             </motion.div>
           </>
@@ -509,6 +527,32 @@ export default function History({
       )}
 
       {sorted.length > 0 && (<>
+        {/* ── Mobile sort bar ───────────────────────────────────── */}
+        <div className="md:hidden flex items-center gap-2">
+          <span className="text-xs text-[#8A8A70] shrink-0">Sort:</span>
+          {[
+            { key: 'date', label: 'Date' },
+            { key: 'amount', label: 'Amount' },
+            { key: 'category', label: 'Category' },
+          ].map(({ key, label }) => {
+            const active = sortKey === key;
+            return (
+              <button
+                key={key}
+                onClick={() => handleSort(key)}
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  active
+                    ? 'bg-[#5A5A40] text-white border-[#5A5A40]'
+                    : 'border-[#1A1A1A]/10 text-[#6B6B50] hover:border-[#5A5A40]/30 hover:text-[#5A5A40]'
+                }`}
+              >
+                {label}
+                {active && (sortDir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />)}
+              </button>
+            );
+          })}
+        </div>
+
         {/* ── Mobile card list ──────────────────────────────────── */}
         <div className="md:hidden space-y-2">
           <AnimatePresence initial={false}>

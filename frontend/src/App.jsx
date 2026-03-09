@@ -21,10 +21,13 @@ import {
   undoReclassification,
   getAuthState,
   saveAuthState,
+  getProfileName,
+  saveProfileName,
 } from './lib/storage';
 
 export default function App() {
   const [authState, setAuthState] = useState(null); // null = loading
+  const [profileName, setProfileName] = useState('Me');
   const [view, setView] = useState('dashboard');
   const [expenses, setExpenses] = useState([]);
   const [showAIEntry, setShowAIEntry] = useState(false);
@@ -49,7 +52,9 @@ export default function App() {
     setAuthState(next);
   };
 
-  const handleOnboardingComplete = async () => {
+  const handleOnboardingComplete = async (name) => {
+    saveProfileName(name);
+    setProfileName(getProfileName());
     await seedSampleData(); // seed only when a new user finishes onboarding
     await loadExpenses();
     const next = { loggedIn: true, onboarded: true };
@@ -78,6 +83,7 @@ export default function App() {
     (async () => {
       const auth = await getAuthState();
       setAuthState(auth);
+      setProfileName(getProfileName());
       await loadExpenses();
     })();
   }, [loadExpenses]);
@@ -221,11 +227,11 @@ export default function App() {
             >
               <CSVImport
                 expenses={expenses}
-                onImport={() => {
-                  loadExpenses();
-                  showToast('CSV imported successfully!');
+                onImport={async () => {
+                  await loadExpenses();
                 }}
                 showToast={showToast}
+                defaultPaidBy={profileName}
               />
             </motion.div>
           )}
@@ -257,6 +263,7 @@ export default function App() {
             expense={pendingExpense}
             onSave={handleConfirm}
             onCancel={() => setPendingExpense(null)}
+            defaultPaidBy={profileName}
           />
         )}
       </AnimatePresence>

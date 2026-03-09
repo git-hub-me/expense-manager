@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Zap, Loader2, CheckCircle, AlertCircle, Trash2, LogOut } from 'lucide-react';
-import { getSettings, saveSettings, clearAllExpenses } from '../lib/storage';
+import { getSettings, saveSettings, clearAllExpenses, getProfileName, saveProfileName } from '../lib/storage';
 
 const MODELS = [
   {
@@ -21,6 +21,7 @@ const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '1.0.0';
 
 export default function Settings({ onClose, onDataCleared, onLogout }) {
   const [settings, setSettings] = useState(getSettings);
+  const [profileName, setProfileName] = useState(getProfileName);
   const [testState, setTestState] = useState(null); // null | 'loading' | 'ok' | 'error'
   const [testMsg, setTestMsg] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
@@ -176,9 +177,22 @@ export default function Settings({ onClose, onDataCleared, onLogout }) {
           {/* Divider */}
           <div className="border-t border-[#1A1A1A]/6" />
 
-          {/* Sign out */}
+          {/* Account */}
           <div>
             <p className="text-xs text-[#8A8A70] uppercase tracking-widest font-medium mb-3">Account</p>
+            <div className="mb-3">
+              <label className="block text-xs text-[#8A8A70] mb-1.5 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                Your name
+              </label>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => { setProfileName(e.target.value); saveProfileName(e.target.value); }}
+                placeholder="e.g. Alex"
+                className="w-full h-11 border border-[#1A1A1A]/10 rounded-xl px-3 text-sm bg-[#FAFAF7] focus:ring-2 focus:ring-[#5A5A40]/20 focus:border-[#5A5A40]/30 transition-all"
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              />
+            </div>
             <button
               onClick={onLogout}
               className="flex items-center gap-2 px-4 py-2.5 border border-[#1A1A1A]/10 rounded-xl text-sm font-medium text-[#5A5A40] hover:bg-[#5A5A40]/5 transition-colors w-full"

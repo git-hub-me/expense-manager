@@ -1,5 +1,6 @@
 import { LayoutDashboard, List, FolderInput, Settings } from 'lucide-react';
 import { motion } from 'motion/react';
+import AppLogo from './AppLogo';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,9 +15,7 @@ export default function Navigation({ view, setView, onOpenSettings }) {
       <header className="sticky top-0 z-30 bg-[#F5F5F0]/90 backdrop-blur-md border-b border-[#1A1A1A]/5 pt-safe">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#5A5A40] flex items-center justify-center">
-              <span className="text-white text-xs font-semibold">₹</span>
-            </div>
+            <AppLogo size="sm" />
             <h1 className="font-serif text-xl font-semibold text-[#1A1A1A] leading-none">
               Expense Tracker
             </h1>

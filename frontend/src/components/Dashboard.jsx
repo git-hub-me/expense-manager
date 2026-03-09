@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, X } from 'lucide-react';
+import { ArrowRight, X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import StatsGrid from './StatsGrid';
 import CategoryPie from './charts/CategoryPie';
 import DailyBar from './charts/DailyBar';
-import { formatCurrency, formatDate, CATEGORY_COLORS, CATEGORY_BG, CATEGORY_ICONS } from '../lib/constants';
+import MonthlyBar from './charts/MonthlyBar';
+import { formatCurrency, formatDate, CATEGORIES, CATEGORY_COLORS, CATEGORY_BG, CATEGORY_ICONS } from '../lib/constants';
 
 function SkeletonCard({ className = '' }) {
   return (
@@ -19,13 +20,31 @@ function SkeletonCard({ className = '' }) {
 export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
   const [dayPopup, setDayPopup] = useState(null); // { full, date, total }
 
+  const now = new Date();
+
   const currentMonthExpenses = useMemo(() => {
-    const now = new Date();
     return expenses.filter((e) => {
       const d = new Date(e.date);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
   }, [expenses]);
+
+  const lastMonthExpenses = useMemo(() => {
+    const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return expenses.filter((e) => {
+      const d = new Date(e.date);
+      return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
+    });
+  }, [expenses]);
+
+  // Category comparison: this month (MTD) vs last month (full)
+  const categoryComparison = useMemo(() => {
+    return CATEGORIES.map((cat) => {
+      const mtd = currentMonthExpenses.filter((e) => e.category === cat).reduce((s, e) => s + (e.amount ?? 0), 0);
+      const last = lastMonthExpenses.filter((e) => e.category === cat).reduce((s, e) => s + (e.amount ?? 0), 0);
+      return { cat, mtd: Math.round(mtd), last: Math.round(last) };
+    }).filter((r) => r.mtd > 0 || r.last > 0);
+  }, [currentMonthExpenses, lastMonthExpenses]);
 
   // Subcategory breakdown for current month
   const subcategoryData = useMemo(() => {
@@ -164,9 +183,80 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
         </div>
       )}
 
-      {/* Charts */}
+      {/* Monthly trend — full-width stacked bar */}
+      <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 p-6">
+        <div className="mb-4">
+          <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">Monthly Trend</h3>
+          <p className="text-xs text-[#8A8A70]">Last 6 months by category · current month is MTD</p>
+        </div>
+        <MonthlyBar expenses={expenses} />
+      </div>
+
+      {/* Category comparison: MTD vs last month */}
+      {categoryComparison.length > 0 && (
+        <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#1A1A1A]/5 flex items-end justify-between">
+            <div>
+              <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">Category Comparison</h3>
+              <p className="text-xs text-[#8A8A70] mt-0.5">This month (MTD) vs last month</p>
+            </div>
+            <div className="flex items-center gap-4 text-[10px] text-[#8A8A70] mb-0.5">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-[#5A5A40]" />MTD
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-[#D0D0C0]" />Last month
+              </span>
+            </div>
+          </div>
+          <div className="divide-y divide-[#1A1A1A]/4">
+            {categoryComparison.map(({ cat, mtd, last }) => {
+              const maxVal = Math.max(mtd, last, 1);
+              const diff = last > 0 ? Math.round(((mtd - last) / last) * 100) : null;
+              const Icon = CATEGORY_ICONS[cat];
+              const color = CATEGORY_COLORS[cat];
+              const bg = CATEGORY_BG[cat];
+              return (
+                <div key={cat} className="px-6 py-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: bg }}>
+                      <Icon size={13} strokeWidth={2} style={{ color }} />
+                    </div>
+                    <span className="text-sm font-medium text-[#1A1A1A] flex-1">{cat}</span>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-[#1A1A1A] tabular-nums">{formatCurrency(mtd)}</p>
+                      {diff !== null && (
+                        <p className={`text-[10px] flex items-center justify-end gap-0.5 ${diff > 0 ? 'text-rose-500' : diff < 0 ? 'text-emerald-600' : 'text-[#8A8A70]'}`}>
+                          {diff > 0 ? <TrendingUp size={10} /> : diff < 0 ? <TrendingDown size={10} /> : <Minus size={10} />}
+                          {diff > 0 ? '+' : ''}{diff}%
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {/* Dual progress bars */}
+                  <div className="space-y-1">
+                    <div className="h-1.5 rounded-full bg-[#F0F0E8] overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${(mtd / maxVal) * 100}%`, backgroundColor: color }}
+                      />
+                    </div>
+                    <div className="h-1.5 rounded-full bg-[#F0F0E8] overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all bg-[#D0D0C0]"
+                        style={{ width: `${(last / maxVal) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Daily spending + category pie */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Pie */}
         <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 p-6">
           <div className="mb-4">
             <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">By Category</h3>
@@ -175,7 +265,6 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
           <CategoryPie expenses={currentMonthExpenses} />
         </div>
 
-        {/* Bar */}
         <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 p-6">
           <div className="mb-4">
             <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">Daily Spending</h3>

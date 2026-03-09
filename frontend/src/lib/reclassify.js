@@ -143,7 +143,7 @@ function validateResponse(parsed) {
 
 // ── Single-batch Gemini call ──────────────────────────────────────────────────
 
-async function callGeminiBatch({ payload, categories, merchantFreq, mode, model, apiKey }) {
+async function callGeminiBatch({ payload, categories, merchantFreq, mode, model, apiKey, signal }) {
   const prompt = buildReclassifyPrompt({
     payload,
     categories,
@@ -154,6 +154,7 @@ async function callGeminiBatch({ payload, categories, merchantFreq, mode, model,
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  if (signal) signal.addEventListener('abort', () => controller.abort());
 
   let res;
   try {
@@ -169,7 +170,10 @@ async function callGeminiBatch({ payload, categories, merchantFreq, mode, model,
       }
     );
   } catch (e) {
-    if (e.name === 'AbortError') throw new Error('Batch timed out after 15s. Try a smaller scope.');
+    if (e.name === 'AbortError') {
+      if (signal?.aborted) throw new DOMException('Analysis stopped by user.', 'AbortError');
+      throw new Error('Batch timed out after 15s. Try a smaller scope.');
+    }
     throw e;
   } finally {
     clearTimeout(timeoutId);
@@ -196,7 +200,7 @@ async function callGeminiBatch({ payload, categories, merchantFreq, mode, model,
 // ── Main reclassification function (batched) ──────────────────────────────────
 // onProgress: ({ current: number, total: number, retrying: boolean }) => void
 
-export async function runReclassification({ expenses, mode, model, apiKey, onProgress }) {
+export async function runReclassification({ expenses, mode, model, apiKey, onProgress, signal }) {
   if (!apiKey) throw new Error('VITE_GEMINI_API_KEY is not set');
   if (expenses.length === 0) throw new Error('No expenses in scope');
 
@@ -210,6 +214,9 @@ export async function runReclassification({ expenses, mode, model, apiKey, onPro
   const allNewSubcategories = [];
 
   for (let i = 0; i < batches.length; i++) {
+    // Check if aborted before starting this batch
+    if (signal?.aborted) throw new DOMException('Analysis stopped by user.', 'AbortError');
+
     // Pause between batches (skip before the first one)
     if (i > 0) await sleep(BATCH_DELAY_MS);
 
@@ -233,8 +240,12 @@ export async function runReclassification({ expenses, mode, model, apiKey, onPro
         mode,
         model,
         apiKey,
+        signal,
       });
     } catch (primaryErr) {
+      // Propagate user abort immediately
+      if (primaryErr.name === 'AbortError') throw primaryErr;
+
       // Primary model failed — try fallback model once
       const fallbackModel = MODEL_FALLBACK[model];
       if (!fallbackModel) throw primaryErr;
@@ -250,6 +261,7 @@ export async function runReclassification({ expenses, mode, model, apiKey, onPro
           mode,
           model: fallbackModel,
           apiKey,
+          signal,
         });
       } catch {
         // Both models failed for this batch — skip it rather than abort everything

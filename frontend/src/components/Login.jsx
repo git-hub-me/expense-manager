@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Eye, EyeOff } from 'lucide-react';
+import AppLogo from './AppLogo';
 
 const LOCKOUT_KEY = 'expense_tracker_login_attempts';
 const MAX_ATTEMPTS = 5;
@@ -85,16 +86,14 @@ export default function Login({ onLogin }) {
       >
         {/* Logo / title */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-[#5A5A40] mb-5">
-            <span className="text-white text-2xl font-bold" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-              E
-            </span>
+          <div className="mb-5">
+            <AppLogo size="md" />
           </div>
           <h1
             className="text-3xl font-semibold text-[#1A1A1A]"
             style={{ fontFamily: 'Cormorant Garamond, serif' }}
           >
-            Expense Manager
+            Expense Tracker
           </h1>
           <p className="mt-1 text-sm text-[#8A8A70]" style={{ fontFamily: 'Inter, sans-serif' }}>
             Sign in to continue

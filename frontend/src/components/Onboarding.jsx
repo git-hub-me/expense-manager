@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, ChevronLeft, Sparkles, Utensils, Car, Zap, Music, ShoppingBag, Heart, Tag } from 'lucide-react';
+import AppLogo from './AppLogo';
 
 const CATEGORIES = [
   { name: 'Food',          icon: Utensils,   color: '#E8824A', bg: '#FDF1EA' },
@@ -21,15 +22,15 @@ const slides = [
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.15, type: 'spring', stiffness: 300, damping: 24 }}
-          className="w-20 h-20 rounded-3xl bg-[#5A5A40] flex items-center justify-center mb-7 shadow-lg"
+          className="mb-7"
         >
-          <span className="text-white text-4xl font-bold" style={{ fontFamily: 'Cormorant Garamond, serif' }}>E</span>
+          <AppLogo size="lg" />
         </motion.div>
         <h2 className="text-3xl font-semibold text-[#1A1A1A] mb-3" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
           Hey there!
         </h2>
         <p className="text-[#5A5A40] text-sm leading-relaxed max-w-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
-          Welcome to your personal Expense Manager. This app helps you track daily spending effortlessly — with AI or manual entry.
+          Welcome to your personal Expense Tracker. This app helps you track daily spending effortlessly — with AI or manual entry.
         </p>
         <p className="mt-3 text-xs text-[#8A8A70]" style={{ fontFamily: 'Inter, sans-serif' }}>
           Set up for you by a friend.
@@ -155,7 +156,7 @@ const slides = [
   },
   {
     id: 'ready',
-    content: ({ onComplete, back }) => (
+    content: ({ onComplete, back, name, setName }) => (
       <div className="flex flex-col items-center text-center px-2">
         <motion.div
           initial={{ scale: 0.7, opacity: 0 }}
@@ -171,13 +172,29 @@ const slides = [
         <p className="text-[#5A5A40] text-sm leading-relaxed max-w-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
           Some sample expenses have been loaded for you to explore. Clear them whenever you're ready and start tracking your own.
         </p>
-        <div className="mt-5 w-full max-w-xs bg-[#F5F5F0] border border-[#1A1A1A]/6 rounded-2xl px-4 py-3 text-left">
+
+        {/* Name input */}
+        <div className="mt-6 w-full max-w-xs text-left">
+          <label className="block text-xs text-[#8A8A70] uppercase tracking-wider mb-1.5 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+            What should we call you?
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Alex"
+            className="w-full h-11 border border-[#1A1A1A]/10 rounded-xl px-3 text-sm bg-white focus:ring-2 focus:ring-[#5A5A40]/20 focus:border-[#5A5A40]/30 transition-all"
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          />
+        </div>
+
+        <div className="mt-4 w-full max-w-xs bg-[#F5F5F0] border border-[#1A1A1A]/6 rounded-2xl px-4 py-3 text-left">
           <p className="text-xs text-[#8A8A70]" style={{ fontFamily: 'Inter, sans-serif' }}>
             Tip: Go to the <span className="font-medium text-[#5A5A40]">Data</span> tab to clear sample data and start fresh.
           </p>
         </div>
 
-        <div className="mt-10 flex gap-3 w-full max-w-xs">
+        <div className="mt-8 flex gap-3 w-full max-w-xs">
           <motion.button
             onClick={back}
             whileTap={{ scale: 0.97 }}
@@ -187,7 +204,7 @@ const slides = [
             <ChevronLeft size={15} /> Back
           </motion.button>
           <motion.button
-            onClick={onComplete}
+            onClick={() => onComplete(name)}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             className="flex-1 py-3.5 bg-[#5A5A40] text-white text-sm font-medium rounded-2xl"
@@ -204,6 +221,7 @@ const slides = [
 export default function Onboarding({ onComplete }) {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
+  const [name, setName] = useState('');
 
   const next = () => {
     setDirection(1);
@@ -245,7 +263,7 @@ export default function Onboarding({ onComplete }) {
             exit={{ opacity: 0, x: direction * -40 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            <SlideContent next={next} back={back} onComplete={onComplete} />
+            <SlideContent next={next} back={back} onComplete={onComplete} name={name} setName={setName} />
           </motion.div>
         </AnimatePresence>
       </div>

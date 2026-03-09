@@ -6,7 +6,7 @@ import { CATEGORIES, CATEGORY_COLORS, CATEGORY_BG, CATEGORY_ICONS, DEFAULT_SUBCA
 const FIELD_CLS =
   'w-full h-11 border border-[#1A1A1A]/10 rounded-xl px-3 text-sm bg-[#FAFAF7] focus:ring-2 focus:ring-[#5A5A40]/20 focus:border-[#5A5A40]/30 transition-all';
 
-export default function PendingExpense({ expense, onSave, onCancel }) {
+export default function PendingExpense({ expense, onSave, onCancel, defaultPaidBy }) {
   const initialCategory = expense?.category || 'Other';
   const isInitialCustom = initialCategory !== '' && !CATEGORIES.includes(initialCategory);
 
@@ -15,16 +15,18 @@ export default function PendingExpense({ expense, onSave, onCancel }) {
     amount: expense?.amount ?? '',
     category: isInitialCustom ? 'Other' : initialCategory,
     details: expense?.details || '',
-    paidBy: expense?.paidBy || 'Me',
+    paidBy: expense?.paidBy || defaultPaidBy || 'Me',
   });
   const [customCategory, setCustomCategory] = useState(isInitialCustom ? initialCategory : '');
   const [subcategory, setSubcategory] = useState(expense?.subcategory ?? '');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
-  const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  const set = (field, value) => { setForm((prev) => ({ ...prev, [field]: value })); setSaveError(null); };
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     const resolvedCategory =
       form.category === 'Other' && customCategory.trim()
         ? customCategory.trim()
@@ -37,7 +39,8 @@ export default function PendingExpense({ expense, onSave, onCancel }) {
         subcategory: subcategory || null,
         _originalPrompt: expense?._originalPrompt ?? null,
       });
-    } finally {
+    } catch (err) {
+      setSaveError(err.message || 'Failed to save');
       setSaving(false);
     }
   };
@@ -214,6 +217,9 @@ export default function PendingExpense({ expense, onSave, onCancel }) {
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
+          {saveError && (
+            <p className="mt-2 text-xs text-red-500 text-center">{saveError}</p>
+          )}
         </div>
       </motion.div>
     </>

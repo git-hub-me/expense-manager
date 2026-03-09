@@ -174,7 +174,7 @@ export default function ReclassifyReview({ proposals, expenseMap, onApply, onClo
               onClick={onClose}
               className="flex-1 py-3 border border-[#1A1A1A]/10 rounded-2xl text-sm font-medium text-[#6B6B50] hover:bg-[#F5F5F0] transition-colors"
             >
-              Reject All
+              Cancel
             </button>
             <button
               onClick={() => onApply(approvedChanges)}

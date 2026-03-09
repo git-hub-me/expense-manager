@@ -211,6 +211,19 @@ export function saveSettings(settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
+// ── Profile (localStorage — same pattern as settings) ─────────────────────────
+
+const PROFILE_KEY = 'expense_tracker_profile_v1';
+
+export function getProfileName() {
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY) ?? 'null')?.name ?? 'Me'; }
+  catch { return 'Me'; }
+}
+
+export function saveProfileName(name) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: name.trim() || 'Me' }));
+}
+
 // ── CSV Export ────────────────────────────────────────────────────────────────
 
 export function exportToCSV(expenses) {
