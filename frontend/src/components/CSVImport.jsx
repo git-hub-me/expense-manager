@@ -87,6 +87,17 @@ function parseCSV(text) {
   return { headers, rows };
 }
 
+function parseAmount(raw) {
+  let s = String(raw ?? '').trim();
+  // Accounting negatives: (1,234.56) → negative
+  const isAccounting = s.startsWith('(') && s.endsWith(')');
+  // Strip currency symbols, spaces, commas — keep digits, dot, minus
+  s = s.replace(/[^\d.\-]/g, '');
+  const val = parseFloat(s) || 0;
+  // Use absolute value — debits/credits both treated as positive expenses
+  return Math.abs(isAccounting ? -val : val);
+}
+
 function rowToExpense(r, mapping) {
   const amountRaw = (mapping.amount   ? r[mapping.amount]   : null) ?? '0';
   const rawDate   = (mapping.date     ? r[mapping.date]     : null) ?? '';
@@ -96,7 +107,7 @@ function rowToExpense(r, mapping) {
 
   return {
     date: parseDate(rawDate),
-    amount: parseFloat(amountRaw) || 0,
+    amount: parseAmount(amountRaw),
     details,
     category,
     paidBy,
