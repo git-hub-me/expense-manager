@@ -87,6 +87,18 @@ function parseCSV(text) {
   return { headers, rows };
 }
 
+function normalizeCategory(raw) {
+  if (!raw) return 'Other';
+  const s = raw.trim().toLowerCase();
+  // Exact match (case-insensitive)
+  const exact = CATEGORIES.find((c) => c.toLowerCase() === s);
+  if (exact) return exact;
+  // Partial match: CSV value contains a known category name
+  const partial = CATEGORIES.find((c) => s.includes(c.toLowerCase()));
+  if (partial) return partial;
+  return 'Other';
+}
+
 function parseAmount(raw) {
   let s = String(raw ?? '').trim();
   // Accounting negatives: (1,234.56) → negative
@@ -102,7 +114,7 @@ function rowToExpense(r, mapping) {
   const amountRaw = (mapping.amount   ? r[mapping.amount]   : null) ?? '0';
   const rawDate   = (mapping.date     ? r[mapping.date]     : null) ?? '';
   const details   = (mapping.details  ? r[mapping.details]  : null) ?? '';
-  const category  = (mapping.category ? r[mapping.category] : null) ?? 'Other';
+  const category  = normalizeCategory((mapping.category ? r[mapping.category] : null) ?? '');
   const paidBy    = (mapping.paidBy   ? r[mapping.paidBy]   : null) ?? 'Me';
 
   return {

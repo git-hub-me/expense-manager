@@ -40,16 +40,18 @@ export default function StatsGrid({ expenses }) {
 
     // ── Monthly ───────────────────────────────────────────────────────────
     const monthly = expenses.filter((e) => {
-      const d = new Date(e.date);
-      return d.getMonth() === m && d.getFullYear() === y;
+      const parts = (e.date ?? '').split('-');
+      return parseInt(parts[0]) === y && parseInt(parts[1]) - 1 === m;
     });
     const total = monthly.reduce((s, e) => s + (e.amount ?? 0), 0);
 
     // Last month
     const lm = new Date(y, m - 1, 1);
+    const lmy = lm.getFullYear();
+    const lmm = lm.getMonth();
     const lastMonthly = expenses.filter((e) => {
-      const d = new Date(e.date);
-      return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
+      const parts = (e.date ?? '').split('-');
+      return parseInt(parts[0]) === lmy && parseInt(parts[1]) - 1 === lmm;
     });
     const lastTotal = lastMonthly.reduce((s, e) => s + (e.amount ?? 0), 0);
 

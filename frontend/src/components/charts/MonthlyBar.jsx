@@ -60,9 +60,13 @@ export default function MonthlyBar({ expenses }) {
       const row = { month: label, isPartial };
       CATEGORIES.forEach((cat) => { row[cat] = 0; });
       expenses.forEach((e) => {
-        const d = new Date(e.date);
-        if (d.getFullYear() === year && d.getMonth() === month) {
-          row[e.category] = (row[e.category] || 0) + (e.amount ?? 0);
+        // Parse date string directly to avoid UTC→local timezone shifts
+        const parts = (e.date ?? '').split('-');
+        const ey = parseInt(parts[0]);
+        const em = parseInt(parts[1]) - 1; // 0-indexed
+        if (ey === year && em === month) {
+          const cat = CATEGORIES.includes(e.category) ? e.category : 'Other';
+          row[cat] = (row[cat] || 0) + (e.amount ?? 0);
         }
       });
       // Round all values

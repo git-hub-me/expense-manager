@@ -23,17 +23,21 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
   const now = new Date();
 
   const currentMonthExpenses = useMemo(() => {
+    const m = now.getMonth();
+    const y = now.getFullYear();
     return expenses.filter((e) => {
-      const d = new Date(e.date);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      const parts = (e.date ?? '').split('-');
+      return parseInt(parts[0]) === y && parseInt(parts[1]) - 1 === m;
     });
   }, [expenses]);
 
   const lastMonthExpenses = useMemo(() => {
     const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const m = lm.getMonth();
+    const y = lm.getFullYear();
     return expenses.filter((e) => {
-      const d = new Date(e.date);
-      return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
+      const parts = (e.date ?? '').split('-');
+      return parseInt(parts[0]) === y && parseInt(parts[1]) - 1 === m;
     });
   }, [expenses]);
 
