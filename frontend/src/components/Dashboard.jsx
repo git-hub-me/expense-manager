@@ -5,6 +5,7 @@ import StatsGrid from './StatsGrid';
 import CategoryPie from './charts/CategoryPie';
 import DailyBar from './charts/DailyBar';
 import MonthlyBar from './charts/MonthlyBar';
+import YearlyBar from './charts/YearlyBar';
 import { formatCurrency, formatDate, CATEGORIES, CATEGORY_COLORS, CATEGORY_BG, CATEGORY_ICONS } from '../lib/constants';
 
 function SkeletonCard({ className = '' }) {
@@ -17,8 +18,17 @@ function SkeletonCard({ className = '' }) {
   );
 }
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'Good morning';
+  if (h >= 12 && h < 17) return 'Good afternoon';
+  if (h >= 17 && h < 21) return 'Good evening';
+  return 'Good night';
+}
+
 export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
   const [dayPopup, setDayPopup] = useState(null); // { full, date, total }
+  const [pieWindow, setPieWindow] = useState('month'); // 'month' | 'lastMonth' | 'lastWeek'
 
   const now = new Date();
 
@@ -41,14 +51,37 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
     });
   }, [expenses]);
 
-  // Category comparison: this month (MTD) vs last month (full)
+  // Last calendar week (Mon–Sun)
+  const lastWeekExpenses = useMemo(() => {
+    const dayOfWeek = (now.getDay() + 6) % 7; // Mon=0 … Sun=6
+    const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+    const lastMonday = new Date(thisMonday);
+    lastMonday.setDate(thisMonday.getDate() - 7);
+    const lastSunday = new Date(thisMonday);
+    lastSunday.setDate(thisMonday.getDate() - 1);
+    const fmt = (d) => d.toISOString().split('T')[0];
+    const from = fmt(lastMonday);
+    const to = fmt(lastSunday);
+    return expenses.filter((e) => (e.date ?? '') >= from && (e.date ?? '') <= to);
+  }, [expenses]);
+
+  // Last month expenses up to the same day-of-month as today (for MTD vs MTD comparison)
+  const lastMonthMTDExpenses = useMemo(() => {
+    const todayDay = now.getDate();
+    return lastMonthExpenses.filter((e) => {
+      const parts = (e.date ?? '').split('-');
+      return parseInt(parts[2]) <= todayDay;
+    });
+  }, [lastMonthExpenses]);
+
+  // Category comparison: this month MTD vs last month same date
   const categoryComparison = useMemo(() => {
     return CATEGORIES.map((cat) => {
       const mtd = currentMonthExpenses.filter((e) => e.category === cat).reduce((s, e) => s + (e.amount ?? 0), 0);
-      const last = lastMonthExpenses.filter((e) => e.category === cat).reduce((s, e) => s + (e.amount ?? 0), 0);
+      const last = lastMonthMTDExpenses.filter((e) => e.category === cat).reduce((s, e) => s + (e.amount ?? 0), 0);
       return { cat, mtd: Math.round(mtd), last: Math.round(last) };
     }).filter((r) => r.mtd > 0 || r.last > 0);
-  }, [currentMonthExpenses, lastMonthExpenses]);
+  }, [currentMonthExpenses, lastMonthMTDExpenses]);
 
   // Subcategory breakdown for current month
   const subcategoryData = useMemo(() => {
@@ -141,9 +174,10 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
 
       {/* Page title */}
       <div>
+        <p className="text-sm text-[#8A8A70]">{getGreeting()}</p>
         <h2 className="font-serif text-4xl font-semibold text-[#1A1A1A]">My Finances</h2>
-        <p className="text-sm text-[#8A8A70] mt-1">
-          {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+        <p className="text-xs text-[#8A8A70] mt-1">
+          {now.toLocaleString('default', { month: 'long', year: 'numeric' })}
         </p>
       </div>
 
@@ -196,21 +230,58 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
         <MonthlyBar expenses={expenses} />
       </div>
 
-      {/* Category comparison: MTD vs last month */}
+      {/* Yearly trend — Jan–Dec totals */}
+      <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 p-6">
+        <div className="mb-4">
+          <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">Yearly Trend</h3>
+          <p className="text-xs text-[#8A8A70]">{now.getFullYear()} · Jan–Dec · current month is MTD</p>
+        </div>
+        <YearlyBar expenses={expenses} />
+      </div>
+
+      {/* Daily spending + category pie */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">By Category</h3>
+            <div className="flex rounded-xl border border-[#1A1A1A]/8 overflow-hidden text-xs font-medium">
+              {[['This month', 'month'], ['Last month', 'lastMonth'], ['Last week', 'lastWeek']].map(([label, val]) => (
+                <button
+                  key={val}
+                  onClick={() => setPieWindow(val)}
+                  className={`px-3 py-1.5 transition-colors ${pieWindow === val ? 'bg-[#5A5A40] text-white' : 'text-[#6B6B50] hover:bg-[#F5F5F0]'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <CategoryPie expenses={pieWindow === 'month' ? currentMonthExpenses : pieWindow === 'lastMonth' ? lastMonthExpenses : lastWeekExpenses} />
+        </div>
+
+        <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 p-6">
+          <div className="mb-4">
+            <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">Daily Spending</h3>
+            <p className="text-xs text-[#8A8A70]">Last 30 days</p>
+          </div>
+          <DailyBar expenses={expenses} onBarClick={handleBarClick} />
+        </div>
+      </div>
+
+      {/* Category comparison: MTD vs last month — last section */}
       {categoryComparison.length > 0 && (
         <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 overflow-hidden">
           <div className="px-6 py-4 border-b border-[#1A1A1A]/5 flex items-end justify-between">
             <div>
               <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">Category Comparison</h3>
-              <p className="text-xs text-[#8A8A70] mt-0.5">This month (MTD) vs last month</p>
+              <p className="text-xs text-[#8A8A70] mt-0.5">
+                {now.toLocaleString('default', { month: 'short' })} 1–{now.getDate()} vs{' '}
+                {new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('default', { month: 'short' })} 1–{now.getDate()}
+              </p>
             </div>
             <div className="flex items-center gap-4 text-[10px] text-[#8A8A70] mb-0.5">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#5A5A40]" />MTD
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#D0D0C0]" />Last month
-              </span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#5A5A40]" />MTD</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#D0D0C0]" />Last month</span>
             </div>
           </div>
           <div className="divide-y divide-[#1A1A1A]/4">
@@ -237,19 +308,12 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
                       )}
                     </div>
                   </div>
-                  {/* Dual progress bars */}
                   <div className="space-y-1">
                     <div className="h-1.5 rounded-full bg-[#F0F0E8] overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${(mtd / maxVal) * 100}%`, backgroundColor: color }}
-                      />
+                      <div className="h-full rounded-full transition-all" style={{ width: `${(mtd / maxVal) * 100}%`, backgroundColor: color }} />
                     </div>
                     <div className="h-1.5 rounded-full bg-[#F0F0E8] overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all bg-[#D0D0C0]"
-                        style={{ width: `${(last / maxVal) * 100}%` }}
-                      />
+                      <div className="h-full rounded-full transition-all bg-[#D0D0C0]" style={{ width: `${(last / maxVal) * 100}%` }} />
                     </div>
                   </div>
                 </div>
@@ -258,25 +322,6 @@ export default function Dashboard({ expenses, loading, onNavigateToHistory }) {
           </div>
         </div>
       )}
-
-      {/* Daily spending + category pie */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 p-6">
-          <div className="mb-4">
-            <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">By Category</h3>
-            <p className="text-xs text-[#8A8A70]">This month</p>
-          </div>
-          <CategoryPie expenses={currentMonthExpenses} />
-        </div>
-
-        <div className="bg-white rounded-3xl border border-[#1A1A1A]/5 p-6">
-          <div className="mb-4">
-            <h3 className="font-serif text-xl font-semibold text-[#1A1A1A]">Daily Spending</h3>
-            <p className="text-xs text-[#8A8A70]">Last 30 days</p>
-          </div>
-          <DailyBar expenses={expenses} onBarClick={handleBarClick} />
-        </div>
-      </div>
     </div>
   );
 }

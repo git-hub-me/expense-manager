@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { X, Sparkles, Loader2, AlertCircle } from 'lucide-react';
-import { today } from '../lib/constants';
+import { today, CATEGORIES } from '../lib/constants';
 import { getSettings } from '../lib/storage';
 
 const EXAMPLES = [
@@ -11,7 +11,6 @@ const EXAMPLES = [
   'Doctor appointment ₹500 this morning',
 ];
 
-const VALID_CATEGORIES = ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Health', 'Other'];
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 async function extractExpense(text, signal) {
@@ -21,6 +20,7 @@ async function extractExpense(text, signal) {
   const { model } = getSettings();
 
   const todayStr = today();
+  const categoryList = CATEGORIES.join(' | ');
   const prompt = `Extract expense information from the text below. Return ONLY valid JSON — no markdown, no explanation.
 
 Text: "${text}"
@@ -38,7 +38,7 @@ Return exactly this JSON shape:
 Rules:
 - date: use today (${todayStr}) when not mentioned
 - amount: numeric value only, no currency symbols
-- category: one of Food | Transport | Utilities | Entertainment | Shopping | Health | Other
+- category: one of ${categoryList}
 - details: clean, concise description
 - paidBy: "Me" unless explicitly stated`;
 
@@ -84,7 +84,7 @@ Rules:
     throw new Error('Couldn\'t parse response. Try again.');
   }
 
-  if (!VALID_CATEGORIES.includes(extracted.category)) extracted.category = 'Other';
+  if (!CATEGORIES.includes(extracted.category)) extracted.category = 'Other';
   extracted.amount = parseFloat(extracted.amount) || 0;
   if (extracted.amount <= 0) {
     throw new Error('No amount found. Try: "spent ₹500".');

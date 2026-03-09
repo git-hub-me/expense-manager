@@ -9,11 +9,12 @@ A personal iOS expense tracking app with AI-powered entry, built with React + Ca
 ## Features
 
 - **AI Entry** — describe an expense in plain text; Gemini extracts amount, category, date and details; original prompt is stored immutably alongside the record
+- **10 categories** — Food, Transport, Utilities, Entertainment, Shopping, Health, Other, Travel, Investment, Rent; each with a unique icon and color
 - **Subcategory support** — pick a subcategory chip at entry time, or let AI reclassification fill them in automatically
 - **Reclassify with AI** — batch-process any date range of expenses through Gemini to fix categories and add subcategories; review proposed changes before applying; 30-second undo window
-- **Dashboard** — 4 KPI cards (this month, vs last month, top category, this week vs last week till date), subcategory spend tiles, category pie chart, 30-day daily bar chart (tap a bar to drill into that day)
+- **Dashboard** — time-based greeting, 4 KPI cards, subcategory spend tiles, monthly trend (6-month stacked bar), yearly trend (Jan–Dec), category pie with This month / Last month / Last week toggle, 30-day daily bar (tap to drill into that day), category comparison (MTD vs same date last month) at the bottom
 - **History** — searchable and sortable list, inline edit, single and bulk delete; subcategory shown per row
-- **CSV Import / Export** — drag-and-drop import with column auto-mapping; export now includes Subcategory and Original Prompt columns
+- **CSV Import / Export** — drag-and-drop import with column auto-mapping and hardcoded 23-value category map (no AI needed); export includes Subcategory and Original Prompt columns
 - **Persistent storage** — data lives in native iOS `UserDefaults` via `@capacitor/preferences` (survives app updates, never auto-evicted)
 - **Settings** — switch between Gemini 2.5 Flash Lite and Flash, test connectivity, clear all data
 
@@ -150,7 +151,9 @@ expense-manager/
 │   │   │   ├── StatsGrid.jsx         # KPI cards (monthly, MoM, top category, WTD)
 │   │   │   └── charts/
 │   │   │       ├── CategoryPie.jsx
-│   │   │       └── DailyBar.jsx
+│   │   │       ├── DailyBar.jsx
+│   │   │       ├── MonthlyBar.jsx
+│   │   │       └── YearlyBar.jsx
 │   │   ├── lib/
 │   │   │   ├── storage.js         # Capacitor Preferences CRUD + reclassify apply/undo
 │   │   │   ├── reclassify.js      # Gemini batched reclassification engine
@@ -186,7 +189,7 @@ The importer is flexible — column names are case-insensitive and several alias
 | `Date` | `date` | YYYY-MM-DD or any JS-parseable date |
 | `Expense` | `Description`, `details`, `Note` | Free text |
 | `Total cost` | `Amount`, `Cost`, `Total` | Numeric |
-| `Category` | `category` | Food, Transport, Utilities, Entertainment, Shopping, Health, Other |
+| `Category` | `category` | Food, Transport, Utilities, Entertainment, Shopping, Health, Other, Travel, Investment, Rent |
 | `Subcategory` | `subcategory` | Optional; e.g. Groceries, Fuel, Streaming |
 | `PaidBy` | `Paid By`, `paid_by` | Defaults to "Me" |
 

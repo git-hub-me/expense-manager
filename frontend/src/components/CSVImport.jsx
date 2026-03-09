@@ -87,16 +87,41 @@ function parseCSV(text) {
   return { headers, rows };
 }
 
-function normalizeCategory(raw) {
-  if (!raw) return 'Other';
-  const s = raw.trim().toLowerCase();
-  // Exact match (case-insensitive)
-  const exact = CATEGORIES.find((c) => c.toLowerCase() === s);
-  if (exact) return exact;
-  // Partial match: CSV value contains a known category name
-  const partial = CATEGORIES.find((c) => s.includes(c.toLowerCase()));
-  if (partial) return partial;
-  return 'Other';
+const CSV_CATEGORY_MAP = {
+  'entertainment':   { category: 'Entertainment' },
+  'travel':          { category: 'Travel' },
+  'trip travel':     { category: 'Travel',      subcategory: 'Flights & Transport' },
+  'trip stay':       { category: 'Travel',      subcategory: 'Accommodation' },
+  'investment':      { category: 'Investment' },
+  'savingaccount':   { category: 'Investment',  subcategory: 'Savings Transfer' },
+  'rent':            { category: 'Rent' },
+  'grocery':         { category: 'Food',        subcategory: 'Groceries' },
+  'order in':        { category: 'Food',        subcategory: 'Food Delivery' },
+  'office lunch':    { category: 'Food',        subcategory: 'Office Lunch' },
+  'eat out':         { category: 'Food',        subcategory: 'Dining Out' },
+  'clothing':        { category: 'Shopping',    subcategory: 'Clothing' },
+  'gifts':           { category: 'Shopping',    subcategory: 'Gifts' },
+  'trip shopping':   { category: 'Shopping',    subcategory: 'Trip Shopping' },
+  'online shopping': { category: 'Shopping',    subcategory: 'Online Shopping' },
+  'medicines':       { category: 'Health',      subcategory: 'Medicines' },
+  'insurance':       { category: 'Health',      subcategory: 'Insurance' },
+  'subscription':    { category: 'Entertainment', subcategory: 'Subscriptions' },
+  'bill payment':    { category: 'Utilities',   subcategory: 'Bills' },
+  'emi':             { category: 'Utilities',   subcategory: 'EMI' },
+  'cash':            { category: 'Other' },
+  'wallet load':     { category: 'Other' },
+  'sanchi':          { category: 'Other' },
+};
+
+function resolveCategory(raw) {
+  const key = (raw ?? '').trim().toLowerCase();
+  const match = CSV_CATEGORY_MAP[key];
+  if (match) return match;
+  // Fallback: exact then partial match against known categories
+  const exact = CATEGORIES.find((c) => c.toLowerCase() === key);
+  if (exact) return { category: exact };
+  const partial = CATEGORIES.find((c) => key.includes(c.toLowerCase()) || c.toLowerCase().includes(key));
+  return { category: partial || 'Other' };
 }
 
 function parseAmount(raw) {
@@ -114,7 +139,7 @@ function rowToExpense(r, mapping) {
   const amountRaw = (mapping.amount   ? r[mapping.amount]   : null) ?? '0';
   const rawDate   = (mapping.date     ? r[mapping.date]     : null) ?? '';
   const details   = (mapping.details  ? r[mapping.details]  : null) ?? '';
-  const category  = normalizeCategory((mapping.category ? r[mapping.category] : null) ?? '');
+  const { category, subcategory = null } = resolveCategory((mapping.category ? r[mapping.category] : null) ?? '');
   const paidBy    = (mapping.paidBy   ? r[mapping.paidBy]   : null) ?? 'Me';
 
   return {
@@ -122,6 +147,7 @@ function rowToExpense(r, mapping) {
     amount: parseAmount(amountRaw),
     details,
     category,
+    subcategory,
     paidBy,
   };
 }

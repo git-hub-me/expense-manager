@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, ChevronLeft, Sparkles, Utensils, Car, Zap, Music, ShoppingBag, Heart, Tag } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import AppLogo from './AppLogo';
+import { CATEGORIES as CATEGORY_NAMES, CATEGORY_ICONS, CATEGORY_COLORS, CATEGORY_BG } from '../lib/constants';
 
-const CATEGORIES = [
-  { name: 'Food',          icon: Utensils,   color: '#E8824A', bg: '#FDF1EA' },
-  { name: 'Transport',     icon: Car,        color: '#4A82E8', bg: '#EAF1FD' },
-  { name: 'Utilities',     icon: Zap,        color: '#9B6AE8', bg: '#F2EAFD' },
-  { name: 'Entertainment', icon: Music,      color: '#E84AB0', bg: '#FDEAF6' },
-  { name: 'Shopping',      icon: ShoppingBag,color: '#2ABFA0', bg: '#EAFAF7' },
-  { name: 'Health',        icon: Heart,      color: '#4AB870', bg: '#EAF7EF' },
-  { name: 'Other',         icon: Tag,        color: '#8A8A70', bg: '#F2F2EE' },
-];
+const CATEGORIES = CATEGORY_NAMES.map((name) => ({
+  name,
+  icon: CATEGORY_ICONS[name],
+  color: CATEGORY_COLORS[name],
+  bg: CATEGORY_BG[name],
+}));
 
 const slides = [
   {
@@ -105,12 +103,12 @@ const slides = [
     content: ({ next, back }) => (
       <div className="flex flex-col items-center text-center px-2">
         <h2 className="text-3xl font-semibold text-[#1A1A1A] mb-2" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-          7 Categories
+          {CATEGORIES.length} Categories
         </h2>
         <p className="text-[#8A8A70] text-sm mb-6" style={{ fontFamily: 'Inter, sans-serif' }}>
           Every expense fits into one of these.
         </p>
-        <div className="grid grid-cols-4 gap-3 w-full max-w-xs">
+        <div className="grid grid-cols-5 gap-3 w-full max-w-xs">
           {CATEGORIES.map(({ name, icon: Icon, color, bg }, i) => (
             <motion.div
               key={name}

@@ -4,6 +4,23 @@ All notable changes to Expense Manager are documented here.
 
 ---
 
+## [1.3.0] — 2026-03-10
+
+### Added
+- **3 new categories: Travel, Investment, Rent** — each with a dedicated Lucide icon (`Plane`, `PiggyBank`, `Home`), color, background, and default subcategories; total categories now 10
+- **Hardcoded CSV category map** — 23 known CSV values map precisely to an app category + subcategory (e.g. "Trip Travel" → Travel / Flights & Transport, "Grocery" → Food / Groceries); no Gemini call or modal needed
+- **Yearly Trend chart** — Jan–Dec bar chart for the current year on Dashboard; current month shown in olive, future months grayed out; current month labeled MTD
+- **Pie chart month selector** — "By Category" card now has a 3-way toggle: This month / Last month / Last week (previous Mon–Sun)
+- **Time-based greeting** — Dashboard header shows Good morning / Good afternoon / Good evening / Good night based on local hour
+- **MTD vs MTD category comparison** — Category Comparison now compares this month 1–N vs the same date range in the previous month (e.g. Mar 1–10 vs Feb 1–10) instead of vs full last month
+
+### Changed
+- **Category Comparison moved to bottom** of Dashboard to reduce scroll depth on first load
+- **Onboarding category slide** now derives icons, colors, and count from `constants.js` — automatically reflects any future category additions
+- **AIEntry Gemini prompt** now lists all 10 categories dynamically from `CATEGORIES` instead of a hardcoded 7-item string
+
+---
+
 ## [1.2.0] — 2026-03-09
 
 ### Added
