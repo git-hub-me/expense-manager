@@ -1,7 +1,73 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { X, Zap, Loader2, CheckCircle, AlertCircle, Trash2, LogOut } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, Zap, Loader2, CheckCircle, AlertCircle, Trash2, LogOut, ChevronDown, ChevronUp } from 'lucide-react';
 import { getSettings, saveSettings, clearAllExpenses, getProfileName, saveProfileName } from '../lib/storage';
+
+const CHANGELOG = [
+  {
+    version: '1.2.0',
+    date: '2026-03-09',
+    entries: {
+      Added: [
+        'Mobile sort bar in History — sort by Date, Amount, or Category with direction toggle',
+        'Stop button in the Reclassify analysis overlay — abort mid-run without waiting',
+        'Save error display in PendingExpense — shows failure message below the Save button',
+      ],
+      Fixed: [
+        'Closing AIEntry (X, Cancel, or backdrop) now aborts the in-flight Gemini fetch immediately',
+        'CSV import now properly awaits state refresh — Dashboard and History update instantly after import',
+        'CSV amount parsing now handles commas (1,234.56), currency symbols (₹), and accounting negatives — previously these rows were silently dropped',
+        'Renamed misleading "Reject All" button in Reclassify Review to "Cancel"',
+      ],
+    },
+  },
+  {
+    version: '1.1.2',
+    date: '2026-03-07',
+    entries: {
+      Added: [
+        'Login screen with brute-force lockout (5 attempts → 5-min lock)',
+        '4-step onboarding walkthrough shown once to new users',
+        'Sign out in Settings',
+        'Error boundary wrapping the app — render crashes show a friendly card',
+        '15-second fetch timeout on AI entry requests',
+      ],
+      Changed: [
+        'Sample data seeding moved to onboarding completion — never runs for returning users',
+      ],
+      Fixed: [
+        'console.warn in reclassify.js now guarded by DEV flag — no leaks in production',
+      ],
+    },
+  },
+  {
+    version: '1.1.0',
+    date: '2026-02-15',
+    entries: {
+      Added: [
+        'AI ledger reclassification — batch Gemini re-categorisation with conservative / deep modes',
+        'Diff-table review with per-row approval and one-tap undo (30-second window)',
+        'Subcategories per expense category',
+        'Audit log of reclassification events',
+        'Dashboard bar chart clickable to filter History by date',
+      ],
+    },
+  },
+  {
+    version: '1.0.0',
+    date: '2026-01-20',
+    entries: {
+      Added: [
+        'AI expense entry via Gemini — natural-language description → review → confirm',
+        'Manual expense entry with 7 categories',
+        'Expense history with sort, filter, inline edit, and delete',
+        'CSV export and import',
+        'Capacitor 8 native iOS storage',
+        'Settings panel with AI model selector',
+      ],
+    },
+  },
+];
 
 const MODELS = [
   {
@@ -25,6 +91,14 @@ export default function Settings({ onClose, onDataCleared, onLogout }) {
   const [testState, setTestState] = useState(null); // null | 'loading' | 'ok' | 'error'
   const [testMsg, setTestMsg] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [expandedVersions, setExpandedVersions] = useState(new Set([CHANGELOG[0].version]));
+
+  const toggleVersion = (v) =>
+    setExpandedVersions((prev) => {
+      const next = new Set(prev);
+      next.has(v) ? next.delete(v) : next.add(v);
+      return next;
+    });
 
   const selectModel = (id) => {
     const next = { ...settings, model: id };
@@ -239,6 +313,66 @@ export default function Settings({ onClose, onDataCleared, onLogout }) {
                 </div>
               </motion.div>
             )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-[#1A1A1A]/6" />
+
+          {/* Changelog */}
+          <div>
+            <p className="text-xs text-[#8A8A70] uppercase tracking-widest font-medium mb-3">What's New</p>
+            <div className="space-y-2">
+              {CHANGELOG.map((release) => {
+                const isOpen = expandedVersions.has(release.version);
+                const isCurrent = release.version === APP_VERSION;
+                return (
+                  <div key={release.version} className={`rounded-2xl border overflow-hidden ${isCurrent ? 'border-[#5A5A40]/30' : 'border-[#1A1A1A]/8'}`}>
+                    <button
+                      onClick={() => toggleVersion(release.version)}
+                      className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${isCurrent ? 'bg-[#5A5A40]/5 hover:bg-[#5A5A40]/8' : 'hover:bg-[#F5F5F0]'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className={`text-sm font-semibold ${isCurrent ? 'text-[#5A5A40]' : 'text-[#1A1A1A]'}`}>
+                          v{release.version}
+                        </span>
+                        {isCurrent && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 bg-[#5A5A40] text-white rounded-full">current</span>
+                        )}
+                        <span className="text-xs text-[#B0B098]">{release.date}</span>
+                      </div>
+                      {isOpen ? <ChevronUp size={14} className="text-[#8A8A70] shrink-0" /> : <ChevronDown size={14} className="text-[#8A8A70] shrink-0" />}
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 pb-4 pt-1 space-y-2.5">
+                            {Object.entries(release.entries).map(([type, items]) => (
+                              <div key={type}>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#8A8A70] mb-1.5">{type}</p>
+                                <ul className="space-y-1">
+                                  {items.map((item, i) => (
+                                    <li key={i} className="flex items-start gap-2 text-xs text-[#4A4A4A]">
+                                      <span className="mt-1.5 w-1 h-1 rounded-full bg-[#5A5A40]/50 shrink-0" />
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Version */}

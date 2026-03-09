@@ -4,7 +4,22 @@ All notable changes to Expense Manager are documented here.
 
 ---
 
-## [Unreleased] — 2026-03-07
+## [1.2.0] — 2026-03-09
+
+### Added
+- **Mobile sort bar in History** — sort pills (Date / Amount / Category) with direction toggle, visible on mobile where table column headers aren't shown
+- **Stop button during Reclassify analysis** — abort a running batch analysis mid-way; shows "Analysis stopped" toast and applies no changes
+- **Save error display in PendingExpense** — if saving an expense fails, an error message now appears below the Save button instead of failing silently
+
+### Fixed
+- **AIEntry cancel aborts fetch** — closing the modal (X button, Cancel, or backdrop tap) during extraction now immediately aborts the in-flight Gemini network request
+- **CSV import view refresh** — Dashboard and History now update instantly after import; previously a race condition could show stale data until the next navigation
+- **CSV amount parsing** — amounts with commas (`1,234.56`), currency symbols (`₹1,200`), or accounting negatives (`(500.00)`) were being silently dropped or parsed incorrectly; all three formats now handled correctly
+- **ReclassifyReview "Reject All" renamed to "Cancel"** — the button always dismissed the modal without applying anything, so "Reject All" was misleading
+
+---
+
+## [1.1.2] — 2026-03-07
 
 ### Added
 - **Login screen** — username/password gate using environment variables (`VITE_APP_USERNAME` / `VITE_APP_PASSWORD`), with shake animation on failure
